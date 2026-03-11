@@ -324,6 +324,8 @@ useEffect(() => {
       .from("devices")
       .select("*");
 
+      console.log("DATOS DESDE SUPABASE:", data);
+
     if (error) {
       console.error(error);
       return;
@@ -333,14 +335,17 @@ useEffect(() => {
       {
         id: "rack1",
         name: "Rack 1",
+        units: 42,
         devices: data.map(device => ({
           id: device.id,
           name: device.name,
           type: device.type,
-          position: device.position,
-          height: 1,      // 👈 esto es lo que falta
-          ports: device.ports || 48,
-          portsUsed: []
+
+          // 👇 estos nombres son los que usa tu interfaz
+          uPosition: device.position,
+          uHeight: device.height || 1,
+
+          ports: device.ports || []
         }))
       }
     ];
