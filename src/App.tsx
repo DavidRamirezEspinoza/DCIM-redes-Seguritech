@@ -402,21 +402,17 @@ export default function App() {
   console.log("Guardando configuración...");
 
   try {
-
-    const payload = racks.map((rack, index) => ({
-      id: rack.id,
-      name: rack.name,
-      type: "RACK",
-      rack: rack.name,
-      position: index,
-      ports: rack.devices || []
-    }));
-
-    console.log("Payload enviado:", payload);
-
     const { data, error } = await supabase
       .from("devices")
-      .upsert(payload);
+      .upsert(
+        racks.map((rack, index) => ({
+          id: rack.id,
+          name: rack.name,
+          type: "RACK", 
+          rack: rack.name,
+          position: index
+        }))
+      );
 
     console.log("Resultado:", data, error);
 
@@ -429,7 +425,6 @@ export default function App() {
     alert("Error al guardar");
   }
 };
-
 
 
 
