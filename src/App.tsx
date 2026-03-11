@@ -26,6 +26,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'motion/react';
+import { supabase } from './supabaseClient';
 
 // @ts-ignore
 import logoSeguritech from './imagenes/1 Logo seguritech.png';
@@ -290,6 +291,52 @@ export default function App() {
   const [isEditDeviceModalOpen, setIsEditDeviceModalOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState<Device | null>(null);
 
+  // --- LÓGICA DE SUPABASE (NUEVO) ---
+  
+  // 1. Función para guardar los racks en la nube
+  const saveToSupabase = async () => {
+    try {
+      const { error } = await supabase
+        .from('devices')
+        .upsert(
+          racks.map(rack => ({
+            id: rack.id,
+            name: rack.name,
+            type: 'RACK',
+            ports: rack.devices, // Guardamos los dispositivos internos aquí
+            updated_at: new Date()
+          }))
+        );
+
+      if (error) throw error;
+      alert("✅ ¡Sincronizado con Seguritech Cloud!");
+    } catch (error) {
+      console.error("Error al guardar:", error);
+      alert("❌ Error al conectar con la base de datos.");
+    }
+  };
+
+  // 2. Efecto para cargar los datos automáticamente al abrir la app
+  useEffect(() => {
+    const loadData = async () => {
+      const { data, error } = await supabase
+        .from('devices')
+        .select('*');
+      
+      if (data && !error) {
+        const loadedRacks = data.map(item => ({
+          id: item.id,
+          name: item.name,
+          devices: item.ports || []
+        }));
+        setRacks(loadedRacks);
+      }
+    };
+    loadData();
+  }, []);
+
+  // --- TUS FUNCIONES ORIGINALES ---
+
   const updateDevice = (rackId: string, deviceId: string, updates: Partial<Device>) => {
     setRacks(racks.map(r => {
       if (r.id !== rackId) return r;
@@ -301,6 +348,7 @@ export default function App() {
     setIsEditDeviceModalOpen(false);
     setEditingDevice(null);
   };
+
   const [isPortModalOpen, setIsPortModalOpen] = useState(false);
   const [selectedPort, setSelectedPort] = useState<{ deviceId: string; portId: number } | null>(null);
   const [confirmModal, setConfirmModal] = useState<{ 
@@ -316,8 +364,7 @@ export default function App() {
     onConfirm: () => {},
     variant: 'primary'
   });
-
-  // Persistence
+  
   // Persistence
   useEffect(() => {
     const loadData = async () => {
