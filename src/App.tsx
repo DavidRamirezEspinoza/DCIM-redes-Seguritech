@@ -364,66 +364,74 @@ export default function App() {
     onConfirm: () => {},
     variant: 'primary'
   });
-  
-  // Persistence
+
+  // --- PERSISTENCIA CON SUPABASE ---
+
+  // 1. Cargar datos al iniciar
   useEffect(() => {
     const loadData = async () => {
       try {
-        // CAMBIO AQUÍ: IP de tu PC + puerto 3000
-        const response = await fetch('http://192.168.20.34:3000/api/load');
-        if (response.ok) {
-          const data = await response.json();
-          if (data && data.racks) {
-            setRacks(data.racks);
-          }
+        const { data, error } = await supabase
+          .from('devices')
+          .select('*');
+        
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          // Transformamos los datos de la nube al formato de tus racks
+          const loadedRacks = data.map(item => ({
+            id: item.id,
+            name: item.name,
+            devices: item.ports || []
+          }));
+          setRacks(loadedRacks);
+        } else {
+          // Si la nube está vacía, intentamos cargar de localStorage como respaldo
+          const saved = localStorage.getItem('seguritech_dcim_backup');
+          if (saved) setRacks(JSON.parse(saved));
         }
       } catch (e) {
-        console.error("Error loading data from server", e);
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-          try {
-            setRacks(JSON.parse(saved));
-          } catch (err) {
-            console.error("Error loading from localStorage", err);
-          }
-        }
+        console.error("Error cargando desde Supabase:", e);
       }
     };
     loadData();
   }, []);
 
+  // 2. Guardar configuración en la nube
   const saveConfig = async () => {
     try {
-      // Usamos la IP de tu PC para que el celular sepa dónde está el servidor
-      const response = await fetch('http://192.168.20.34:3000/api/save', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ racks }),
-      });
+      // Guardamos en Supabase
+      const { error } = await supabase
+        .from('devices')
+        .upsert(
+          racks.map(rack => ({
+            id: rack.id,
+            name: rack.name,
+            type: 'RACK',
+            ports: rack.devices, // Se guarda como JSONB en la columna 'ports'
+            updated_at: new Date()
+          }))
+        );
 
-      if (response.ok) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(racks));
-        alert("✅ Configuración guardada permanentemente en el servidor de Seguritech.");
-      } else {
-        throw new Error('Error al guardar en el servidor');
-      }
+      if (error) throw error;
+
+      // Respaldo local por si acaso
+      localStorage.setItem('seguritech_dcim_backup', JSON.stringify(racks));
+      alert("✅ ¡Sincronizado con Seguritech Cloud (Ohio) con éxito!");
+      
     } catch (e) {
-      console.error("Error saving data to server", e);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(racks));
-      alert("⚠️ Error al conectar con el servidor. Se guardó localmente en el navegador.");
+      console.error("Error al guardar:", e);
+      alert("❌ Error al conectar con Supabase. Verifica las llaves en Vercel.");
     }
   };
 
+  // 3. Funciones de archivos (Exportar/Importar) - Se mantienen igual por utilidad
   const exportConfig = () => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(racks, null, 2));
     const downloadAnchorNode = document.createElement('a');
     downloadAnchorNode.setAttribute("href", dataStr);
     downloadAnchorNode.setAttribute("download", "seguritech_networks_config.json");
-    document.body.appendChild(downloadAnchorNode);
     downloadAnchorNode.click();
-    downloadAnchorNode.remove();
   };
 
   const importConfig = (e: React.ChangeEvent<HTMLInputElement>) => {
