@@ -398,42 +398,36 @@ export default function App() {
   }, []);
 
   // 2. Guardar configuración en la nube
-  const saveConfig = async () => {
+const saveConfig = async () => {
   console.log("Guardando configuración...");
 
   try {
-    const { data, error } = await supabase
+
+    const payload = racks.flatMap(rack =>
+      rack.devices.map(device => ({
+        id: device.id,
+        name: device.name,
+        type: device.type,
+        rack: rack.name,
+        position: device.position,
+        ports: device.ports || 48
+      }))
+    );
+
+    const { error } = await supabase
       .from("devices")
-      .upsert(
-        racks.map((rack, index) => ({
-          id: rack.id,
-          name: rack.name,
-          type: "RACK",
-          rack: rack.name,
-          position: index,
-          ports: rack.devices.map(device => ({
-          id: device.id,
-          name: device.name,
-          type: device.type,
-          position: device.position,
-          ports: device.ports || 0,
-          portsUsed: device.portsUsed || []
-        }))
-
-        }))
-      );
-
-    console.log("Resultado:", data, error);
+      .upsert(payload);
 
     if (error) throw error;
 
     alert("Guardado correctamente");
 
   } catch (err) {
-    console.error("Error al guardar:", err);
+    console.error(err);
     alert("Error al guardar");
   }
 };
+
 
 
 
