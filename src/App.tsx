@@ -399,25 +399,33 @@ export default function App() {
 
   // 2. Guardar configuración en la nube
   const saveConfig = async () => {
+  console.log("Guardando configuración...");
+
   try {
-    const { error } = await supabase
-      .from('devices')
+    const { data, error } = await supabase
+      .from("devices")
       .upsert(
         racks.map((rack, index) => ({
           id: rack.id,
           name: rack.name,
-          type: 'RACK',
+          type: "RACK",
           rack: rack.name,
           position: index
         }))
       );
 
+    console.log("Resultado:", data, error);
+
     if (error) throw error;
+
+    alert("Guardado correctamente");
 
   } catch (err) {
     console.error("Error al guardar:", err);
+    alert("Error al guardar");
   }
 };
+
 
 
   // 3. Funciones de archivos (Exportar/Importar) - Se mantienen igual por utilidad
