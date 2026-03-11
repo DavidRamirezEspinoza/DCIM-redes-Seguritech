@@ -399,31 +399,26 @@ export default function App() {
 
   // 2. Guardar configuración en la nube
   const saveConfig = async () => {
-    try {
-      // Guardamos en Supabase
-      const { error } = await supabase
-        .from('devices')
-        .upsert(
-          racks.map(rack => ({
-            id: rack.id,
-            name: rack.name,
-            type: 'RACK',
-            ports: rack.devices, // Se guarda como JSONB en la columna 'ports'
-            updated_at: new Date()
-          }))
-        );
+  try {
+    const { error } = await supabase
+      .from('devices')
+      .upsert(
+        racks.map((rack, index) => ({
+          id: rack.id,
+          name: rack.name,
+          type: 'RACK',
+          rack: rack.name,
+          position: index
+        }))
+      );
 
-      if (error) throw error;
+    if (error) throw error;
 
-      // Respaldo local por si acaso
-      localStorage.setItem('seguritech_dcim_backup', JSON.stringify(racks));
-      alert("✅ ¡Sincronizado con Seguritech Cloud (Ohio) con éxito!");
-      
-    } catch (e) {
-      console.error("Error al guardar:", e);
-      alert("❌ Error al conectar con Supabase. Verifica las llaves en Vercel.");
-    }
-  };
+  } catch (err) {
+    console.error("Error al guardar:", err);
+  }
+};
+
 
   // 3. Funciones de archivos (Exportar/Importar) - Se mantienen igual por utilidad
   const exportConfig = () => {
