@@ -317,23 +317,41 @@ export default function App() {
   };
 
   // 2. Efecto para cargar los datos automáticamente al abrir la app
-  useEffect(() => {
-    const loadData = async () => {
-      const { data, error } = await supabase
-        .from('devices')
-        .select('*');
-      
-      if (data && !error) {
-        const loadedRacks = data.map(item => ({
-          id: item.id,
-          name: item.name,
-          devices: item.ports || []
-        }));
-        setRacks(loadedRacks);
+useEffect(() => {
+  const loadData = async () => {
+
+    const { data, error } = await supabase
+      .from("devices")
+      .select("*");
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    const loadedRacks = [
+      {
+        id: "rack1",
+        name: "Rack 1",
+        devices: data.map(device => ({
+          id: device.id,
+          name: device.name,
+          type: device.type,
+          position: device.position,
+          height: 1,      // 👈 esto es lo que falta
+          ports: device.ports || 48,
+          portsUsed: []
+        }))
       }
-    };
-    loadData();
-  }, []);
+    ];
+
+    setRacks(loadedRacks);
+
+  };
+
+  loadData();
+}, []);
+
 
   // --- TUS FUNCIONES ORIGINALES ---
 
