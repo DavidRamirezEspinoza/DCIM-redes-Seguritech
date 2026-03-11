@@ -411,7 +411,15 @@ export default function App() {
           type: "RACK",
           rack: rack.name,
           position: index,
-          ports: rack.devices || []
+          ports: rack.devices.map(device => ({
+          id: device.id,
+          name: device.name,
+          type: device.type,
+          position: device.position,
+          ports: device.ports || 0,
+          portsUsed: device.portsUsed || []
+        }))
+
         }))
       );
 
