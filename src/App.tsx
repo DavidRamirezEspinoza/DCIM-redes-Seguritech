@@ -408,7 +408,7 @@ export default function App() {
         racks.map((rack, index) => ({
           id: rack.id,
           name: rack.name,
-          type: "RACK",
+          type: "RACK", 
           rack: rack.name,
           position: index
         }))
