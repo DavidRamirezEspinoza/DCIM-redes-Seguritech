@@ -336,14 +336,14 @@ useEffect(() => {
         id: "rack1",
         name: "Rack 1",
         units: 42,
-        devices: data.map(device => ({
+        devices: data.map((device, index) => ({
           id: device.id,
           name: device.name,
           type: device.type,
 
-          // 👇 estos nombres son los que usa tu interfaz
-          uPosition: device.position,
-          uHeight: device.height || 1,
+          // 👇 protección si Supabase no trae position o height
+          uPosition: Number(device.position) || (index + 1),
+          uHeight: Number(device.height) || 1,
 
           ports: device.ports || []
         }))
