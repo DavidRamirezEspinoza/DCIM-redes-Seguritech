@@ -473,6 +473,9 @@ export default function App() {
 
 
   useEffect(() => {
+
+    if (!session) return;
+
     const loadSites = async () => {
 
       const { data, error } = await supabase
@@ -495,7 +498,9 @@ export default function App() {
     };
 
     loadSites();
-  }, []);
+
+  }, [session]);
+
 
   // 2. Guardar configuración en la nube
   const saveConfig = async () => {
