@@ -61,7 +61,7 @@ interface Rack {
   devices: Device[];
 }
 
-type NavigationLevel = 
+type NavigationLevel =
   | { type: 'GLOBAL' }
   | { type: 'RACK'; rackId: string }
   | { type: 'DEVICE'; rackId: string; deviceId: string };
@@ -75,7 +75,7 @@ const STORAGE_KEY = 'seguritech_networks_config';
 
 const DeviceGraphic = ({ device, onClick, showU }: { device: Device; onClick?: () => void; showU?: boolean }) => {
   const baseClasses = "w-full h-full px-3 flex items-center justify-between border transition-all hover:brightness-110 cursor-pointer overflow-hidden relative group";
-  
+
   const UBadge = showU ? (
     <div className="absolute top-0 left-0 bg-black/40 text-[8px] px-1 font-mono text-zinc-400 border-r border-b border-white/10 z-10">
       {device.uPosition}U
@@ -213,16 +213,16 @@ const DeviceGraphic = ({ device, onClick, showU }: { device: Device; onClick?: (
   return null;
 };
 
-const Button = ({ 
-  children, 
-  onClick, 
-  variant = 'primary', 
-  className = '', 
+const Button = ({
+  children,
+  onClick,
+  variant = 'primary',
+  className = '',
   disabled = false,
   title
-}: { 
-  children: React.ReactNode; 
-  onClick?: () => void; 
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
   variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
   className?: string;
   disabled?: boolean;
@@ -247,22 +247,22 @@ const Button = ({
   );
 };
 
-const Modal = ({ 
-  isOpen, 
-  onClose, 
-  title, 
-  children 
-}: { 
-  isOpen: boolean; 
-  onClose: () => void; 
-  title: string; 
+const Modal = ({
+  isOpen,
+  onClose,
+  title,
+  children
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
   children: React.ReactNode;
 }) => {
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-md overflow-hidden shadow-2xl"
@@ -291,8 +291,14 @@ export default function App() {
   const [isEditDeviceModalOpen, setIsEditDeviceModalOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState<Device | null>(null);
 
+
+  const [session, setSession] = useState<any>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+
   // --- LÓGICA DE SUPABASE (NUEVO) ---
-  
+
   // 1. Función para guardar los racks en la nube
   const saveToSupabase = async () => {
     try {
@@ -315,52 +321,69 @@ export default function App() {
       alert("❌ Error al conectar con la base de datos.");
     }
   };
+  // --- AUTENTICACIÓN SUPABASE ---
+
+  useEffect(() => {
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => {
+      listener.subscription.unsubscribe();
+    };
+
+  }, []);
 
   // 2. Efecto para cargar los datos automáticamente al abrir la app
-useEffect(() => {
-  const loadData = async () => {
+  useEffect(() => {
+    const loadData = async () => {
 
-    const { data, error } = await supabase
-      .from("devices")
-      .select("*");
+      const { data, error } = await supabase
+        .from("devices")
+        .select("*");
 
-    console.log("DATOS DESDE SUPABASE:", data);
+      console.log("DATOS DESDE SUPABASE:", data);
 
-    if (error) {
-      console.error(error);
-      return;
-    }
-
-    // 👇 si no hay dispositivos, no crear racks
-    if (!data || data.length === 0) {
-      setRacks([]);
-      return;
-    }
-
-    const loadedRacks = [
-      {
-        id: "rack1",
-        name: data[0].rack || "Rack 1",
-        units: 42,
-        devices: data.map((device, index) => ({
-          id: device.id,
-          name: device.name,
-          type: device.type,
-
-          uPosition: Number(device.position) || (index + 1),
-          uHeight: Number(device.height) || 1,
-
-          ports: device.ports || []
-        }))
+      if (error) {
+        console.error(error);
+        return;
       }
-    ];
 
-    setRacks(loadedRacks);
+      // 👇 si no hay dispositivos, no crear racks
+      if (!data || data.length === 0) {
+        setRacks([]);
+        return;
+      }
 
-  };
+      const loadedRacks = [
+        {
+          id: "rack1",
+          name: data[0].rack || "Rack 1",
+          units: 42,
+          devices: data.map((device, index) => ({
+            id: device.id,
+            name: device.name,
+            type: device.type,
 
-  loadData();
-}, []);
+            uPosition: Number(device.position) || (index + 1),
+            uHeight: Number(device.height) || 1,
+
+            ports: device.ports || []
+          }))
+        }
+      ];
+
+      setRacks(loadedRacks);
+
+    };
+
+    loadData();
+  }, []);
 
 
 
@@ -382,70 +405,70 @@ useEffect(() => {
   const [selectedSite, setSelectedSite] = useState<string | null>(null);
   const [isPortModalOpen, setIsPortModalOpen] = useState(false);
   const [selectedPort, setSelectedPort] = useState<{ deviceId: string; portId: number } | null>(null);
-  const [confirmModal, setConfirmModal] = useState<{ 
-    isOpen: boolean; 
-    title: string; 
-    message: string; 
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
     onConfirm: () => void;
     variant: 'danger' | 'primary'
   }>({
     isOpen: false,
     title: '',
     message: '',
-    onConfirm: () => {},
+    onConfirm: () => { },
     variant: 'primary'
   });
 
   // --- PERSISTENCIA CON SUPABASE ---
 
   // 1. Cargar datos al iniciar
-useEffect(() => {
+  useEffect(() => {
 
-  if (!selectedSite) return;
+    if (!selectedSite) return;
 
-  const loadData = async () => {
+    const loadData = async () => {
 
-    const { data: racksData, error: racksError } = await supabase
-      .from("racks")
-      .select("*")
-      .eq("site_id", selectedSite);
+      const { data: racksData, error: racksError } = await supabase
+        .from("racks")
+        .select("*")
+        .eq("site_id", selectedSite);
 
-    const { data: devicesData, error: devicesError } = await supabase
-      .from("devices")
-      .select("*");
+      const { data: devicesData, error: devicesError } = await supabase
+        .from("devices")
+        .select("*");
 
-    if (racksError || devicesError) {
-      console.error(racksError || devicesError);
-      return;
-    }
+      if (racksError || devicesError) {
+        console.error(racksError || devicesError);
+        return;
+      }
 
-    console.log("RACKS:", racksData);
-    console.log("DEVICES:", devicesData);
+      console.log("RACKS:", racksData);
+      console.log("DEVICES:", devicesData);
 
-    const loadedRacks = racksData.map(rack => ({
-      id: rack.id,
-      name: rack.name,
-      units: rack.units || 42,
+      const loadedRacks = racksData.map(rack => ({
+        id: rack.id,
+        name: rack.name,
+        units: rack.units || 42,
 
-      devices: devicesData
-        .filter(device => device.rack_id === rack.id)
-        .map(device => ({
-          id: device.id,
-          name: device.name,
-          type: device.type,
-          uPosition: Number(device.position) || 1,
-          uHeight: Number(device.height) || 1,
-          ports: device.ports || []
-        }))
-    }));
+        devices: devicesData
+          .filter(device => device.rack_id === rack.id)
+          .map(device => ({
+            id: device.id,
+            name: device.name,
+            type: device.type,
+            uPosition: Number(device.position) || 1,
+            uHeight: Number(device.height) || 1,
+            ports: device.ports || []
+          }))
+      }));
 
-    setRacks(loadedRacks);
+      setRacks(loadedRacks);
 
-  };
+    };
 
-  loadData();
+    loadData();
 
-}, [selectedSite]);
+  }, [selectedSite]);
 
 
 
@@ -475,125 +498,125 @@ useEffect(() => {
   }, []);
 
   // 2. Guardar configuración en la nube
-const saveConfig = async () => {
+  const saveConfig = async () => {
 
-  console.log("Guardando configuración...");
+    console.log("Guardando configuración...");
 
-  try {
+    try {
 
-    // 1️⃣ Obtener racks actuales en Supabase
-    const { data: existingRacks, error: fetchRackError } = await supabase
-      .from("racks")
-      .select("id")
-      .eq("site_id", selectedSite);
-
-    if (fetchRackError) throw fetchRackError;
-
-
-    // 2️⃣ Detectar racks eliminados en frontend
-    const frontendRackIds = racks.map(r => r.id);
-
-    const racksToDelete = existingRacks
-      .filter(r => !frontendRackIds.includes(r.id))
-      .map(r => r.id);
-
-
-    // 3️⃣ Eliminar racks borrados
-    if (racksToDelete.length > 0) {
-
-      const { error: deleteRackError } = await supabase
+      // 1️⃣ Obtener racks actuales en Supabase
+      const { data: existingRacks, error: fetchRackError } = await supabase
         .from("racks")
-        .delete()
-        .in("id", racksToDelete);
+        .select("id")
+        .eq("site_id", selectedSite);
 
-      if (deleteRackError) throw deleteRackError;
-
-    }
+      if (fetchRackError) throw fetchRackError;
 
 
-    // 4️⃣ Guardar racks actuales
-    const rackPayload = racks.map(rack => ({
-      id: rack.id,
+      // 2️⃣ Detectar racks eliminados en frontend
+      const frontendRackIds = racks.map(r => r.id);
+
+      const racksToDelete = existingRacks
+        .filter(r => !frontendRackIds.includes(r.id))
+        .map(r => r.id);
+
+
+      // 3️⃣ Eliminar racks borrados
+      if (racksToDelete.length > 0) {
+
+        const { error: deleteRackError } = await supabase
+          .from("racks")
+          .delete()
+          .in("id", racksToDelete);
+
+        if (deleteRackError) throw deleteRackError;
+
+      }
+
+
+      // 4️⃣ Guardar racks actuales
+      const rackPayload = racks.map(rack => ({
+        id: rack.id,
         name: rack.name,
         units: rack.units || 42,
         site_id: selectedSite
       }));
 
-    const { error: rackError } = await supabase
-      .from("racks")
-      .upsert(rackPayload);
+      const { error: rackError } = await supabase
+        .from("racks")
+        .upsert(rackPayload);
 
-    if (rackError) throw rackError;
-
-
-    // 5️⃣ Preparar dispositivos
-    const devicePayload = racks.flatMap(rack =>
-      rack.devices.map(device => ({
-        id: device.id,
-        name: device.name,
-        type: device.type,
-        rack_id: rack.id,
-        position: device.uPosition,
-        height: device.uHeight,
-        ports: device.ports || []
-      }))
-    );
+      if (rackError) throw rackError;
 
 
-    // 6️⃣ Obtener devices existentes
-    const { data: existingDevices, error: fetchError } = await supabase
-      .from("devices")
-      .select("id, rack_id")
-      .in(
-        "rack_id",
-        racks.map(r => r.id)
+      // 5️⃣ Preparar dispositivos
+      const devicePayload = racks.flatMap(rack =>
+        rack.devices.map(device => ({
+          id: device.id,
+          name: device.name,
+          type: device.type,
+          rack_id: rack.id,
+          position: device.uPosition,
+          height: device.uHeight,
+          ports: device.ports || []
+        }))
       );
 
-    if (fetchError) throw fetchError;
 
-
-    // 7️⃣ Detectar devices eliminados
-    const frontendIds = devicePayload.map(d => d.id);
-
-    const devicesToDelete = existingDevices
-      .filter(d => !frontendIds.includes(d.id))
-      .map(d => d.id);
-
-
-    // 8️⃣ Eliminar devices borrados
-    if (devicesToDelete.length > 0) {
-
-      const { error: deleteError } = await supabase
+      // 6️⃣ Obtener devices existentes
+      const { data: existingDevices, error: fetchError } = await supabase
         .from("devices")
-        .delete()
-        .in("id", devicesToDelete);
+        .select("id, rack_id")
+        .in(
+          "rack_id",
+          racks.map(r => r.id)
+        );
 
-      if (deleteError) throw deleteError;
+      if (fetchError) throw fetchError;
+
+
+      // 7️⃣ Detectar devices eliminados
+      const frontendIds = devicePayload.map(d => d.id);
+
+      const devicesToDelete = existingDevices
+        .filter(d => !frontendIds.includes(d.id))
+        .map(d => d.id);
+
+
+      // 8️⃣ Eliminar devices borrados
+      if (devicesToDelete.length > 0) {
+
+        const { error: deleteError } = await supabase
+          .from("devices")
+          .delete()
+          .in("id", devicesToDelete);
+
+        if (deleteError) throw deleteError;
+
+      }
+
+
+      // 9️⃣ Guardar devices actuales
+      if (devicePayload.length > 0) {
+
+        const { error: deviceError } = await supabase
+          .from("devices")
+          .upsert(devicePayload);
+
+        if (deviceError) throw deviceError;
+
+      }
+
+      alert("Guardado correctamente");
+
+    } catch (err) {
+
+      console.error(err);
+      alert("Error al guardar");
 
     }
 
-
-    // 9️⃣ Guardar devices actuales
-    if (devicePayload.length > 0) {
-
-      const { error: deviceError } = await supabase
-        .from("devices")
-        .upsert(devicePayload);
-
-      if (deviceError) throw deviceError;
-
-    }
-
-    alert("Guardado correctamente");
-
-  } catch (err) {
-
-    console.error(err);
-    alert("Error al guardar");
-
-  }
-
-};
+  };
 
 
 
@@ -628,262 +651,262 @@ const saveConfig = async () => {
   const goToDevice = (rackId: string, deviceId: string) => setNav({ type: 'DEVICE', rackId, deviceId });
 
   // Data Handlers
-const addRack = (name: string, units: number) => {
+  const addRack = (name: string, units: number) => {
 
-  const newRack: Rack = {
-    id: crypto.randomUUID(),
-    name,
-    units,
-    devices: []
+    const newRack: Rack = {
+      id: crypto.randomUUID(),
+      name,
+      units,
+      devices: []
+    };
+
+    setRacks(prev => [...prev, newRack]);
+    setIsAddRackModalOpen(false);
+
   };
 
-  setRacks(prev => [...prev, newRack]);
-  setIsAddRackModalOpen(false);
 
-};
+  const addDevice = (rackId: string, device: Omit<Device, 'id' | 'ports'>) => {
 
+    const rack = racks.find(r => r.id === rackId);
+    if (!rack) return;
 
-const addDevice = (rackId: string, device: Omit<Device, 'id' | 'ports'>) => {
+    if (device.uPosition < 1 || (device.uPosition + device.uHeight - 1) > rack.units) {
+      alert(`El dispositivo excede los límites del rack (1-${rack.units}U)`);
+      return;
+    }
 
-  const rack = racks.find(r => r.id === rackId);
-  if (!rack) return;
+    // Check for collisions across the entire height of the new device
+    const newRange = Array.from({ length: device.uHeight }, (_, i) => device.uPosition + i);
 
-  if (device.uPosition < 1 || (device.uPosition + device.uHeight - 1) > rack.units) {
-    alert(`El dispositivo excede los límites del rack (1-${rack.units}U)`);
-    return;
-  }
+    const collision = rack.devices.find(d => {
+      const existingRange = Array.from({ length: d.uHeight }, (_, i) => d.uPosition + i);
+      return newRange.some(u => existingRange.includes(u));
+    });
 
-  // Check for collisions across the entire height of the new device
-  const newRange = Array.from({ length: device.uHeight }, (_, i) => device.uPosition + i);
+    if (collision) {
 
-  const collision = rack.devices.find(d => {
-    const existingRange = Array.from({ length: d.uHeight }, (_, i) => d.uPosition + i);
-    return newRange.some(u => existingRange.includes(u));
-  });
+      setConfirmModal({
+        isOpen: true,
+        title: 'Conflicto de Posición',
+        message: `La posición seleccionada se solapa con "${collision.name}". ¿Deseas reemplazarlo?`,
+        variant: 'danger',
 
-  if (collision) {
+        onConfirm: () => {
 
-    setConfirmModal({
-      isOpen: true,
-      title: 'Conflicto de Posición',
-      message: `La posición seleccionada se solapa con "${collision.name}". ¿Deseas reemplazarlo?`,
-      variant: 'danger',
+          const numPorts = (device.type === 'Switch' || device.type === 'Patch Panel') ? 48 : 4;
 
-      onConfirm: () => {
+          const newDevice: Device = {
+            ...device,
+            id: crypto.randomUUID(),
+            ports: Array.from({ length: numPorts }, (_, i) => {
 
-        const numPorts = (device.type === 'Switch' || device.type === 'Patch Panel') ? 48 : 4;
+              let portName = `${i + 1}`;
 
-        const newDevice: Device = {
-          ...device,
-          id: crypto.randomUUID(),
-          ports: Array.from({ length: numPorts }, (_, i) => {
+              if (device.type === 'Server' || device.type === 'Firewall') {
+                const names = ['MGMT', 'WAN', 'LAN1', 'LAN2'];
+                portName = names[i] || `P${i + 1}`;
+              }
 
-            let portName = `${i + 1}`;
+              return {
+                id: i + 1,
+                name: portName,
+                connectedTo: '',
+                vlan: '1',
+                cableColor: '#3b82f6',
+                destinationPort: ''
+              };
 
-            if (device.type === 'Server' || device.type === 'Firewall') {
-              const names = ['MGMT', 'WAN', 'LAN1', 'LAN2'];
-              portName = names[i] || `P${i + 1}`;
-            }
+            })
+          };
 
-            return {
-              id: i + 1,
-              name: portName,
-              connectedTo: '',
-              vlan: '1',
-              cableColor: '#3b82f6',
-              destinationPort: ''
-            };
-
-          })
-        };
-
-        setRacks(prev =>
-          prev.map(r =>
-            r.id === rackId
-              ? {
+          setRacks(prev =>
+            prev.map(r =>
+              r.id === rackId
+                ? {
                   ...r,
                   devices: [
                     ...r.devices.filter(d => d.id !== collision.id),
                     newDevice
                   ]
                 }
-              : r
-          )
-        );
+                : r
+            )
+          );
 
-        setIsAddDeviceModalOpen(false);
+          setIsAddDeviceModalOpen(false);
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+
+        }
+
+      });
+
+      return;
+    }
+
+    const numPorts = (device.type === 'Switch' || device.type === 'Patch Panel') ? 48 : 4;
+
+    const newDevice: Device = {
+      ...device,
+      id: crypto.randomUUID(),
+      ports: Array.from({ length: numPorts }, (_, i) => {
+
+        let portName = `${i + 1}`;
+
+        if (device.type === 'Server' || device.type === 'Firewall') {
+          const names = ['MGMT', 'WAN', 'LAN1', 'LAN2'];
+          portName = names[i] || `P${i + 1}`;
+        }
+
+        return {
+          id: i + 1,
+          name: portName,
+          connectedTo: '',
+          vlan: '1',
+          cableColor: '#3b82f6',
+          destinationPort: ''
+        };
+
+      })
+    };
+
+    setRacks(prev =>
+      prev.map(r =>
+        r.id === rackId
+          ? { ...r, devices: [...r.devices, newDevice] }
+          : r
+      )
+    );
+
+    setIsAddDeviceModalOpen(false);
+
+  };
+
+
+  const updatePort = (rackId: string, deviceId: string, portId: number, config: Partial<PortConfig>) => {
+
+    setRacks(prev =>
+      prev.map(r => {
+
+        if (r.id !== rackId) return r;
+
+        return {
+          ...r,
+          devices: r.devices.map(d => {
+
+            if (d.id !== deviceId) return d;
+
+            return {
+              ...d,
+              ports: d.ports.map(p =>
+                p.id === portId ? { ...p, ...config } : p
+              )
+            };
+
+          })
+        };
+
+      })
+    );
+
+    setIsPortModalOpen(false);
+
+  };
+
+
+  const deleteRack = (id: string) => {
+
+    const rack = racks.find(r => r.id === id);
+
+    setConfirmModal({
+      isOpen: true,
+      title: 'Eliminar Rack',
+      message: `¿Estás seguro de que deseas eliminar el rack "${rack?.name}"? Esta acción no se puede deshacer.`,
+      variant: 'danger',
+
+      onConfirm: () => {
+
+        setRacks(prev => prev.filter(r => r.id !== id));
+
+        if (nav.type === 'RACK' && nav.rackId === id) goToGlobal();
+        if (nav.type === 'DEVICE' && nav.rackId === id) goToGlobal();
+
         setConfirmModal(prev => ({ ...prev, isOpen: false }));
 
       }
 
     });
 
-    return;
-  }
-
-  const numPorts = (device.type === 'Switch' || device.type === 'Patch Panel') ? 48 : 4;
-
-  const newDevice: Device = {
-    ...device,
-    id: crypto.randomUUID(),
-    ports: Array.from({ length: numPorts }, (_, i) => {
-
-      let portName = `${i + 1}`;
-
-      if (device.type === 'Server' || device.type === 'Firewall') {
-        const names = ['MGMT', 'WAN', 'LAN1', 'LAN2'];
-        portName = names[i] || `P${i + 1}`;
-      }
-
-      return {
-        id: i + 1,
-        name: portName,
-        connectedTo: '',
-        vlan: '1',
-        cableColor: '#3b82f6',
-        destinationPort: ''
-      };
-
-    })
   };
 
-  setRacks(prev =>
-    prev.map(r =>
-      r.id === rackId
-        ? { ...r, devices: [...r.devices, newDevice] }
-        : r
-    )
-  );
 
-  setIsAddDeviceModalOpen(false);
+  const deleteDevice = (rackId: string, deviceId: string) => {
 
-};
+    const rack = racks.find(r => r.id === rackId);
+    const device = rack?.devices.find(d => d.id === deviceId);
 
+    setConfirmModal({
+      isOpen: true,
+      title: 'Eliminar Dispositivo',
+      message: `¿Estás seguro de que deseas eliminar "${device?.name}"? Las conexiones existentes a este equipo se marcarán como huérfanas.`,
+      variant: 'danger',
 
-const updatePort = (rackId: string, deviceId: string, portId: number, config: Partial<PortConfig>) => {
+      onConfirm: () => {
 
-  setRacks(prev =>
-    prev.map(r => {
+        const deviceName = device?.name;
 
-      if (r.id !== rackId) return r;
+        setRacks(prev =>
+          prev.map(r => {
 
-      return {
-        ...r,
-        devices: r.devices.map(d => {
+            return {
+              ...r,
+              devices: r.devices
+                .filter(d => d.id !== deviceId)
+                .map(d => ({
+                  ...d,
+                  ports: d.ports.map(p =>
+                    p.connectedTo === deviceName
+                      ? { ...p, connectedTo: `[HUÉRFANO] (${deviceName})` }
+                      : p
+                  )
+                }))
+            };
 
-          if (d.id !== deviceId) return d;
+          })
+        );
 
-          return {
-            ...d,
-            ports: d.ports.map(p =>
-              p.id === portId ? { ...p, ...config } : p
-            )
-          };
+        if (nav.type === 'DEVICE' && nav.deviceId === deviceId) goToRack(rackId);
 
-        })
-      };
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
 
-    })
-  );
+      }
 
-  setIsPortModalOpen(false);
+    });
 
-};
-
-
-const deleteRack = (id: string) => {
-
-  const rack = racks.find(r => r.id === id);
-
-  setConfirmModal({
-    isOpen: true,
-    title: 'Eliminar Rack',
-    message: `¿Estás seguro de que deseas eliminar el rack "${rack?.name}"? Esta acción no se puede deshacer.`,
-    variant: 'danger',
-
-    onConfirm: () => {
-
-      setRacks(prev => prev.filter(r => r.id !== id));
-
-      if (nav.type === 'RACK' && nav.rackId === id) goToGlobal();
-      if (nav.type === 'DEVICE' && nav.rackId === id) goToGlobal();
-
-      setConfirmModal(prev => ({ ...prev, isOpen: false }));
-
-    }
-
-  });
-
-};
+  };
 
 
-const deleteDevice = (rackId: string, deviceId: string) => {
+  const reorderDevices = (rackId: string, newDevices: Device[]) => {
 
-  const rack = racks.find(r => r.id === rackId);
-  const device = rack?.devices.find(d => d.id === deviceId);
+    setRacks(prev =>
+      prev.map(r => {
 
-  setConfirmModal({
-    isOpen: true,
-    title: 'Eliminar Dispositivo',
-    message: `¿Estás seguro de que deseas eliminar "${device?.name}"? Las conexiones existentes a este equipo se marcarán como huérfanas.`,
-    variant: 'danger',
+        if (r.id !== rackId) return r;
 
-    onConfirm: () => {
+        const updatedDevices = newDevices.map((d, index) => ({
+          ...d,
+          uPosition: index + 1
+        }));
 
-      const deviceName = device?.name;
+        return {
+          ...r,
+          devices: updatedDevices
+        };
 
-      setRacks(prev =>
-        prev.map(r => {
+      })
+    );
 
-          return {
-            ...r,
-            devices: r.devices
-              .filter(d => d.id !== deviceId)
-              .map(d => ({
-                ...d,
-                ports: d.ports.map(p =>
-                  p.connectedTo === deviceName
-                    ? { ...p, connectedTo: `[HUÉRFANO] (${deviceName})` }
-                    : p
-                )
-              }))
-          };
-
-        })
-      );
-
-      if (nav.type === 'DEVICE' && nav.deviceId === deviceId) goToRack(rackId);
-
-      setConfirmModal(prev => ({ ...prev, isOpen: false }));
-
-    }
-
-  });
-
-};
-
-
-const reorderDevices = (rackId: string, newDevices: Device[]) => {
-
-  setRacks(prev =>
-    prev.map(r => {
-
-      if (r.id !== rackId) return r;
-
-      const updatedDevices = newDevices.map((d, index) => ({
-        ...d,
-        uPosition: index + 1
-      }));
-
-      return {
-        ...r,
-        devices: updatedDevices
-      };
-
-    })
-  );
-
-};
+  };
 
 
   // --- Views ---
@@ -924,7 +947,7 @@ const reorderDevices = (rackId: string, newDevices: Device[]) => {
           </div>
         ) : (
           racks.map(rack => (
-            <motion.div 
+            <motion.div
               key={rack.id}
               layoutId={rack.id}
               className="flex-shrink-0 w-64 bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden flex flex-col shadow-lg"
@@ -933,23 +956,23 @@ const reorderDevices = (rackId: string, newDevices: Device[]) => {
                 <h3 className="font-bold text-zinc-200 truncate pr-2">{rack.name}</h3>
                 <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded uppercase tracking-wider">{rack.units}U</span>
               </div>
-              
+
               <div className="flex-1 p-4 bg-zinc-900/50 relative min-h-[400px]">
                 {/* Rack Rails */}
                 <div className="absolute inset-y-0 left-2 w-1 bg-zinc-800 rounded-full" />
                 <div className="absolute inset-y-0 right-2 w-1 bg-zinc-800 rounded-full" />
-                
+
                 {/* Devices Visualization */}
                 <div className="relative h-full grid grid-cols-1 border border-zinc-800/50 rounded overflow-hidden bg-zinc-950/30" style={{ gridTemplateRows: `repeat(${rack.units}, minmax(0, 1fr))` }}>
                   {Array.from({ length: rack.units }).map((_, i) => {
                     const u = rack.units - i; // 42 at top, 1 at bottom
                     const device = rack.devices.find(d => u >= d.uPosition && u < d.uPosition + d.uHeight);
-                    
+
                     if (device) {
                       if (u === device.uPosition + device.uHeight - 1) {
                         return (
-                          <div 
-                            key={u} 
+                          <div
+                            key={u}
                             style={{ gridRow: `span ${device.uHeight}` }}
                             className="relative"
                           >
@@ -1020,12 +1043,12 @@ const reorderDevices = (rackId: string, newDevices: Device[]) => {
                 {Array.from({ length: rack.units }).map((_, i) => {
                   const u = rack.units - i;
                   const device = rack.devices.find(d => u >= d.uPosition && u < d.uPosition + d.uHeight);
-                  
+
                   if (device) {
                     if (u === device.uPosition + device.uHeight - 1) {
                       return (
-                        <div 
-                          key={device.id} 
+                        <div
+                          key={device.id}
                           style={{ gridRow: `span ${device.uHeight}` }}
                           className="relative"
                         >
@@ -1054,41 +1077,41 @@ const reorderDevices = (rackId: string, newDevices: Device[]) => {
               </h3>
               <span className="text-[10px] text-zinc-500 uppercase bg-zinc-900 px-2 py-1 rounded border border-zinc-800">Arrastra para reordenar</span>
             </div>
-            
+
             {rack.devices.length === 0 ? (
               <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-12 flex flex-col items-center justify-center text-zinc-500 gap-2">
                 <Info size={32} />
                 <p>No hay dispositivos en este rack.</p>
               </div>
             ) : (
-              <Reorder.Group 
-                axis="y" 
-                values={[...rack.devices].sort((a, b) => a.uPosition - b.uPosition)} 
+              <Reorder.Group
+                axis="y"
+                values={[...rack.devices].sort((a, b) => a.uPosition - b.uPosition)}
                 onReorder={(newOrder) => reorderDevices(rack.id, newOrder)}
                 className="flex flex-col gap-3"
               >
                 {[...rack.devices].sort((a, b) => a.uPosition - b.uPosition).map(device => (
-                  <Reorder.Item 
-                    key={device.id} 
+                  <Reorder.Item
+                    key={device.id}
                     value={device}
                     className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex items-center gap-4 hover:border-zinc-700 transition-colors group cursor-grab active:cursor-grabbing"
                   >
                     <div className="text-zinc-700 group-hover:text-zinc-500 transition-colors">
                       <GripVertical size={20} />
                     </div>
-                    
+
                     <div className="flex-1 flex justify-between items-center">
                       <div>
                         <h4 className="font-bold text-zinc-100">{device.name}</h4>
                         <span className="text-xs text-zinc-500">{device.type} • Posición {device.uPosition}U ({device.uHeight}U)</span>
                       </div>
-                      
+
                       <div className="flex items-center gap-4">
                         <div className="hidden sm:flex items-center gap-2">
                           <div className="w-24 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                            <div 
-                              className="h-full bg-emerald-500" 
-                              style={{ width: `${(device.ports.filter(p => p.connectedTo).length / device.ports.length) * 100}%` }} 
+                            <div
+                              className="h-full bg-emerald-500"
+                              style={{ width: `${(device.ports.filter(p => p.connectedTo).length / device.ports.length) * 100}%` }}
                             />
                           </div>
                           <span className="text-[10px] text-zinc-500 font-mono w-8">
@@ -1174,72 +1197,72 @@ const reorderDevices = (rackId: string, newDevices: Device[]) => {
               </div>
             </div>
 
-         {/* Ports Grid - Versión Limpia y Sin Errores */}
-        <div 
-          className={`${(device.type === 'Switch' || device.type === 'Patch Panel') ? 'grid' : 'flex flex-wrap'} gap-1 p-3 bg-zinc-950/50 rounded-lg border border-zinc-800/50 overflow-visible z-10`}
-          style={(device.type === 'Switch' || device.type === 'Patch Panel') ? { 
-            display: 'grid', 
-            gridTemplateRows: 'repeat(2, minmax(0, 1fr))', 
-            gridAutoFlow: 'column',
-            gap: '4px 6px'
-          } : {}}
-        >
-          {device.ports.map(port => (
-            <div key={port.id} className="flex flex-col items-center gap-0.5 relative">
-              <span className="text-[8px] font-mono text-zinc-600 truncate w-7 text-center">
-                {port.name || port.id}
-              </span>
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={() => {
-                  setSelectedPort({ deviceId: device.id, portId: port.id });
-                  setIsPortModalOpen(true);
-                }}
-                className={`w-7 h-7 rounded-sm border flex items-center justify-center transition-all relative group
+            {/* Ports Grid - Versión Limpia y Sin Errores */}
+            <div
+              className={`${(device.type === 'Switch' || device.type === 'Patch Panel') ? 'grid' : 'flex flex-wrap'} gap-1 p-3 bg-zinc-950/50 rounded-lg border border-zinc-800/50 overflow-visible z-10`}
+              style={(device.type === 'Switch' || device.type === 'Patch Panel') ? {
+                display: 'grid',
+                gridTemplateRows: 'repeat(2, minmax(0, 1fr))',
+                gridAutoFlow: 'column',
+                gap: '4px 6px'
+              } : {}}
+            >
+              {device.ports.map(port => (
+                <div key={port.id} className="flex flex-col items-center gap-0.5 relative">
+                  <span className="text-[8px] font-mono text-zinc-600 truncate w-7 text-center">
+                    {port.name || port.id}
+                  </span>
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => {
+                      setSelectedPort({ deviceId: device.id, portId: port.id });
+                      setIsPortModalOpen(true);
+                    }}
+                    className={`w-7 h-7 rounded-sm border flex items-center justify-center transition-all relative group
                   ${port.connectedTo ? 'border-zinc-400 bg-zinc-800 shadow-[0_0_5px_rgba(255,255,255,0.1)]' : 'border-zinc-800 bg-zinc-950'}
                   hover:z-30`}
-              >
-                {/* Port Interior */}
-                <div className="w-4 h-2.5 bg-zinc-900 border border-zinc-800 rounded-[1px] flex items-center justify-center overflow-hidden">
-                  {port.connectedTo && (
-                    <div 
-                      className="w-full h-full opacity-60" 
-                      style={{ backgroundColor: port.cableColor }} 
-                    />
-                  )}
+                  >
+                    {/* Port Interior */}
+                    <div className="w-4 h-2.5 bg-zinc-900 border border-zinc-800 rounded-[1px] flex items-center justify-center overflow-hidden">
+                      {port.connectedTo && (
+                        <div
+                          className="w-full h-full opacity-60"
+                          style={{ backgroundColor: port.cableColor }}
+                        />
+                      )}
+                    </div>
+
+                    {/* Tooltip con Fondo Negro Sólido para que no se trasluzca nada */}
+                    {port.connectedTo && (
+                      <div className="absolute bottom-[115%] left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block z-50 w-40 bg-black border border-zinc-700 p-3 rounded-md text-[10px] text-zinc-300 shadow-[0_20px_50px_rgba(0,0,0,0.7)] pointer-events-none">
+                        <div className="absolute top-0 left-0 w-full h-0.5 bg-emerald-500 rounded-t-md"></div>
+
+                        <div className="font-bold text-emerald-400 mb-1.5 pb-1.5 border-b border-zinc-800 flex justify-between">
+                          <span>Puerto {port.name || port.id}</span>
+                          <span className="text-[8px] text-zinc-600 uppercase font-mono">{port.id}</span>
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="flex justify-between">
+                            <span className="text-zinc-500">Dest:</span>
+                            <span className="text-zinc-100 font-medium truncate ml-2">{port.connectedTo}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-zinc-500">Etiqueta:</span>
+                            <span className="text-zinc-100 truncate ml-2">{port.cableLabel || 'N/A'}</span>
+                          </div>
+                          <div className="flex justify-between items-center pt-1 border-t border-zinc-800/50 mt-1">
+                            <span className="text-zinc-500">VLAN:</span>
+                            <span className="text-emerald-500 font-bold text-xs bg-emerald-950/50 px-2 py-0.5 rounded">{port.vlan}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </motion.button>
                 </div>
-                
-                {/* Tooltip con Fondo Negro Sólido para que no se trasluzca nada */}
-                {port.connectedTo && (
-                  <div className="absolute bottom-[115%] left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block z-50 w-40 bg-black border border-zinc-700 p-3 rounded-md text-[10px] text-zinc-300 shadow-[0_20px_50px_rgba(0,0,0,0.7)] pointer-events-none">
-                    <div className="absolute top-0 left-0 w-full h-0.5 bg-emerald-500 rounded-t-md"></div>
-                    
-                    <div className="font-bold text-emerald-400 mb-1.5 pb-1.5 border-b border-zinc-800 flex justify-between">
-                      <span>Puerto {port.name || port.id}</span>
-                      <span className="text-[8px] text-zinc-600 uppercase font-mono">{port.id}</span>
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <div className="flex justify-between">
-                        <span className="text-zinc-500">Dest:</span>
-                        <span className="text-zinc-100 font-medium truncate ml-2">{port.connectedTo}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-zinc-500">Etiqueta:</span>
-                        <span className="text-zinc-100 truncate ml-2">{port.cableLabel || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between items-center pt-1 border-t border-zinc-800/50 mt-1">
-                        <span className="text-zinc-500">VLAN:</span>
-                        <span className="text-emerald-500 font-bold text-xs bg-emerald-950/50 px-2 py-0.5 rounded">{port.vlan}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </motion.button>
+              ))}
             </div>
-          ))}
-        </div>
           </div>
         </div>
 
@@ -1262,7 +1285,7 @@ const reorderDevices = (rackId: string, newDevices: Device[]) => {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 md:col-span-2">
             <h4 className="text-sm font-bold text-zinc-400 mb-4 uppercase tracking-wider">Mapeo de VLANs</h4>
             <div className="flex flex-wrap gap-2">
@@ -1292,9 +1315,9 @@ const reorderDevices = (rackId: string, newDevices: Device[]) => {
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
             <label className="text-xs font-bold text-zinc-500 uppercase">Nombre del Rack</label>
-            <input 
-              type="text" 
-              value={name} 
+            <input
+              type="text"
+              value={name}
               onChange={e => setName(e.target.value)}
               placeholder="Ej: RACK-A1"
               className="bg-zinc-950 border border-zinc-800 rounded-md p-2 text-zinc-100 focus:outline-none focus:border-emerald-500 transition-colors"
@@ -1302,9 +1325,9 @@ const reorderDevices = (rackId: string, newDevices: Device[]) => {
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs font-bold text-zinc-500 uppercase">Unidades (U)</label>
-            <input 
-              type="number" 
-              value={units} 
+            <input
+              type="number"
+              value={units}
               onChange={e => setUnits(parseInt(e.target.value))}
               className="bg-zinc-950 border border-zinc-800 rounded-md p-2 text-zinc-100 focus:outline-none focus:border-emerald-500 transition-colors"
             />
@@ -1341,17 +1364,17 @@ const reorderDevices = (rackId: string, newDevices: Device[]) => {
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
             <label className="text-xs font-bold text-zinc-500 uppercase">Nombre</label>
-            <input 
-              type="text" 
-              value={name} 
+            <input
+              type="text"
+              value={name}
               onChange={e => setName(e.target.value)}
               className="bg-zinc-950 border border-zinc-800 rounded-md p-2 text-zinc-100 focus:outline-none focus:border-emerald-500 transition-colors"
             />
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs font-bold text-zinc-500 uppercase">Tipo</label>
-            <select 
-              value={type} 
+            <select
+              value={type}
               onChange={e => setType(e.target.value as DeviceType)}
               className="bg-zinc-950 border border-zinc-800 rounded-md p-2 text-zinc-100 focus:outline-none focus:border-emerald-500 transition-colors"
             >
@@ -1368,9 +1391,9 @@ const reorderDevices = (rackId: string, newDevices: Device[]) => {
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
               <label className="text-xs font-bold text-zinc-500 uppercase">Posición Base (U)</label>
-              <input 
-                type="number" 
-                value={uPos} 
+              <input
+                type="number"
+                value={uPos}
                 min={1}
                 max={rack.units}
                 onChange={e => setUPos(parseInt(e.target.value))}
@@ -1379,9 +1402,9 @@ const reorderDevices = (rackId: string, newDevices: Device[]) => {
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-xs font-bold text-zinc-500 uppercase">Altura (U)</label>
-              <input 
-                type="number" 
-                value={uHeight} 
+              <input
+                type="number"
+                value={uHeight}
                 min={1}
                 max={10}
                 onChange={e => setUHeight(parseInt(e.target.value))}
@@ -1412,9 +1435,9 @@ const reorderDevices = (rackId: string, newDevices: Device[]) => {
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
             <label className="text-xs font-bold text-zinc-500 uppercase">Nombre</label>
-            <input 
-              type="text" 
-              value={name} 
+            <input
+              type="text"
+              value={name}
               onChange={e => setName(e.target.value)}
               placeholder="Ej: SW-CORE-01"
               className="bg-zinc-950 border border-zinc-800 rounded-md p-2 text-zinc-100 focus:outline-none focus:border-emerald-500 transition-colors"
@@ -1422,8 +1445,8 @@ const reorderDevices = (rackId: string, newDevices: Device[]) => {
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs font-bold text-zinc-500 uppercase">Tipo</label>
-            <select 
-              value={type} 
+            <select
+              value={type}
               onChange={e => setType(e.target.value as DeviceType)}
               className="bg-zinc-950 border border-zinc-800 rounded-md p-2 text-zinc-100 focus:outline-none focus:border-emerald-500 transition-colors"
             >
@@ -1440,9 +1463,9 @@ const reorderDevices = (rackId: string, newDevices: Device[]) => {
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
               <label className="text-xs font-bold text-zinc-500 uppercase">Posición Base (U)</label>
-              <input 
-                type="number" 
-                value={uPos} 
+              <input
+                type="number"
+                value={uPos}
                 min={1}
                 max={rack.units}
                 onChange={e => setUPos(parseInt(e.target.value))}
@@ -1451,9 +1474,9 @@ const reorderDevices = (rackId: string, newDevices: Device[]) => {
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-xs font-bold text-zinc-500 uppercase">Altura (U)</label>
-              <input 
-                type="number" 
-                value={uHeight} 
+              <input
+                type="number"
+                value={uHeight}
                 min={1}
                 max={10}
                 onChange={e => setUHeight(parseInt(e.target.value))}
@@ -1488,9 +1511,9 @@ const reorderDevices = (rackId: string, newDevices: Device[]) => {
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
             <label className="text-xs font-bold text-zinc-500 uppercase">Dispositivo Destino</label>
-            <input 
-              type="text" 
-              value={connectedTo} 
+            <input
+              type="text"
+              value={connectedTo}
               onChange={e => setConnectedTo(e.target.value)}
               placeholder="Ej: PC-OFICINA-01"
               className="bg-zinc-950 border border-zinc-800 rounded-md p-2 text-zinc-100 focus:outline-none focus:border-emerald-500 transition-colors"
@@ -1498,9 +1521,9 @@ const reorderDevices = (rackId: string, newDevices: Device[]) => {
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs font-bold text-zinc-500 uppercase">Etiqueta de Cable</label>
-            <input 
-              type="text" 
-              value={cableLabel} 
+            <input
+              type="text"
+              value={cableLabel}
               onChange={e => setCableLabel(e.target.value)}
               placeholder="Ej: CB-001-A"
               className="bg-zinc-950 border border-zinc-800 rounded-md p-2 text-zinc-100 focus:outline-none focus:border-emerald-500 transition-colors"
@@ -1509,18 +1532,18 @@ const reorderDevices = (rackId: string, newDevices: Device[]) => {
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
               <label className="text-xs font-bold text-zinc-500 uppercase">VLAN</label>
-              <input 
-                type="text" 
-                value={vlan} 
+              <input
+                type="text"
+                value={vlan}
                 onChange={e => setVlan(e.target.value)}
                 className="bg-zinc-950 border border-zinc-800 rounded-md p-2 text-zinc-100 focus:outline-none focus:border-emerald-500 transition-colors"
               />
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-xs font-bold text-zinc-500 uppercase">Color de Cable</label>
-              <input 
-                type="color" 
-                value={cableColor} 
+              <input
+                type="color"
+                value={cableColor}
                 onChange={e => setCableColor(e.target.value)}
                 className="bg-zinc-950 border border-zinc-800 rounded-md h-10 w-full p-1 cursor-pointer"
               />
@@ -1528,9 +1551,9 @@ const reorderDevices = (rackId: string, newDevices: Device[]) => {
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs font-bold text-zinc-500 uppercase">Puerto de Destino (Mapeo)</label>
-            <input 
-              type="text" 
-              value={destPort} 
+            <input
+              type="text"
+              value={destPort}
               onChange={e => setDestPort(e.target.value)}
               placeholder="Ej: Patch Panel 1 - Puerto 12"
               className="bg-zinc-950 border border-zinc-800 rounded-md p-2 text-zinc-100 focus:outline-none focus:border-emerald-500 transition-colors"
@@ -1550,47 +1573,108 @@ const reorderDevices = (rackId: string, newDevices: Device[]) => {
   };
 
   // --- Main Render ---
+  if (!session) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+
+        <div className="bg-zinc-900 p-8 rounded-lg w-80">
+
+          <h2 className="text-white text-lg mb-6 text-center">
+            Acceso DCIM
+          </h2>
+
+          <input
+            type="email"
+            placeholder="Correo"
+            className="w-full mb-3 p-2 bg-zinc-800 text-white rounded"
+            onChange={(e) => setEmail(e.target.value)}
+          />
+
+          <input
+            type="password"
+            placeholder="Contraseña"
+            className="w-full mb-4 p-2 bg-zinc-800 text-white rounded"
+            onChange={(e) => setPassword(e.target.value)}
+          />
+
+          <button
+            className="w-full bg-emerald-600 p-2 rounded"
+            onClick={async () => {
+
+              const { error } = await supabase.auth.signInWithPassword({
+                email,
+                password
+              });
+
+              if (error) {
+                alert(error.message);
+              }
+
+            }}
+          >
+            Iniciar sesión
+          </button>
+
+        </div>
+
+      </div>
+    );
+  }
+
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-200 font-sans selection:bg-emerald-500/30">
       {/* Header */}
       <header className="border-b border-zinc-900 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-40">
-      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {/* Contenedor de la imagen ajustado */}
-          <div className="flex items-center justify-center h-10 overflow-hidden">
-            <img
-              src={logoSeguritech}
-              alt="Logo"
-              className="h-full w-auto object-contain"
-            />
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {/* Contenedor de la imagen ajustado */}
+            <div className="flex items-center justify-center h-10 overflow-hidden">
+              <img
+                src={logoSeguritech}
+                alt="Logo"
+                className="h-full w-auto object-contain"
+              />
+            </div>
+
+            <h1 className="text-xl font-black tracking-tighter text-white">
+              NETWORK <span className="text-emerald-500">MANGER</span>
+            </h1>
+
+            <select
+              value={selectedSite || ""}
+              onChange={(e) => setSelectedSite(e.target.value)}
+              className="ml-4 bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs rounded px-3 py-1"
+            >
+              {sites.map(site => (
+                <option key={site.id} value={site.id}>
+                  {site.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-6 text-xs font-medium text-zinc-500">
+            <span className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              SISTEMA ONLINE
+            </span>
+            <span className="hidden sm:inline">
+              {session?.user?.email}
+            </span>
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut();
+                setSession(null);
+              }}
+              className="bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1 rounded text-xs"
+            >
+              Cerrar sesión
+            </button>
+            <span className="hidden sm:inline">DCIM v1.0.0</span>
           </div>
 
-          <h1 className="text-xl font-black tracking-tighter text-white">
-            NETWORK <span className="text-emerald-500">MANGER</span>
-          </h1>
-
-          <select
-            value={selectedSite || ""}
-            onChange={(e) => setSelectedSite(e.target.value)}
-            className="ml-4 bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs rounded px-3 py-1"
-          >
-            {sites.map(site => (
-              <option key={site.id} value={site.id}>
-                {site.name}
-              </option>
-            ))}
-          </select>
         </div>
-        <div className="flex items-center gap-6 text-xs font-medium text-zinc-500">
-          <span className="flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> 
-            SISTEMA ONLINE
-          </span>
-          <span className="hidden sm:inline">DCIM v1.0.0</span>
-        </div>
-      </div>
-    </header>
+      </header>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-10">
@@ -1628,9 +1712,9 @@ const reorderDevices = (rackId: string, newDevices: Device[]) => {
       <PortConfigModal />
 
       {/* Confirmation Modal */}
-      <Modal 
-        isOpen={confirmModal.isOpen} 
-        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))} 
+      <Modal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
         title={confirmModal.title}
       >
         <div className="flex flex-col gap-6">
@@ -1639,16 +1723,16 @@ const reorderDevices = (rackId: string, newDevices: Device[]) => {
             <p className="text-sm text-zinc-300 leading-relaxed">{confirmModal.message}</p>
           </div>
           <div className="flex gap-3">
-            <Button 
-              variant={confirmModal.variant} 
-              className="flex-1 justify-center" 
+            <Button
+              variant={confirmModal.variant}
+              className="flex-1 justify-center"
               onClick={confirmModal.onConfirm}
             >
               Confirmar
             </Button>
-            <Button 
-              variant="secondary" 
-              className="flex-1 justify-center" 
+            <Button
+              variant="secondary"
+              className="flex-1 justify-center"
               onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
             >
               Cancelar
