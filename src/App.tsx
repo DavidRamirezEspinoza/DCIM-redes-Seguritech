@@ -439,39 +439,26 @@ const saveConfig = async () => {
       }))
     );
 
-    // 1️⃣ leer lo que existe en la base
-    const { data: existingDevices, error: fetchError } = await supabase
+    // 1️⃣ borrar todo lo anterior
+    const { error: deleteError } = await supabase
       .from("devices")
-      .select("id");
+      .delete()
+      .neq("id", "");
 
-    if (fetchError) throw fetchError;
+    if (deleteError) throw deleteError;
 
-    const existingIds = existingDevices.map(d => d.id);
-    const newIds = payload.map(d => d.id);
+    // 2️⃣ insertar configuración actual
+    if (payload.length > 0) {
 
-    // 2️⃣ detectar eliminados
-    const idsToDelete = existingIds.filter(id => !newIds.includes(id));
-
-    // 3️⃣ borrar eliminados
-    if (idsToDelete.length > 0) {
-
-      const { error: deleteError } = await supabase
+      const { error: insertError } = await supabase
         .from("devices")
-        .delete()
-        .in("id", idsToDelete);
+        .insert(payload);
 
-      if (deleteError) throw deleteError;
+      if (insertError) throw insertError;
 
     }
 
-    // 4️⃣ guardar actuales
-    const { error: upsertError } = await supabase
-      .from("devices")
-      .upsert(payload);
-
-    if (upsertError) throw upsertError;
-
-    alert("Guardado correctamente");
+    alert("Configuración guardada correctamente");
 
   } catch (err) {
 
@@ -481,12 +468,6 @@ const saveConfig = async () => {
   }
 
 };
-
-
-
-
-
-
   // 3. Funciones de archivos (Exportar/Importar) - Se mantienen igual por utilidad
   const exportConfig = () => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(racks, null, 2));
