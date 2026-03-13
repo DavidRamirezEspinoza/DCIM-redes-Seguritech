@@ -523,172 +523,265 @@ const saveConfig = async () => {
   const goToDevice = (rackId: string, deviceId: string) => setNav({ type: 'DEVICE', rackId, deviceId });
 
   // Data Handlers
-  const addRack = (name: string, units: number) => {
-    const newRack: Rack = {
-      id: crypto.randomUUID(),
-      name,
-      units,
-      devices: []
-    };
-    setRacks([...racks, newRack]);
-    setIsAddRackModalOpen(false);
+ // Data Handlers
+
+const addRack = (name: string, units: number) => {
+
+  const newRack: Rack = {
+    id: crypto.randomUUID(),
+    name,
+    units,
+    devices: []
   };
 
-  const addDevice = (rackId: string, device: Omit<Device, 'id' | 'ports'>) => {
-    const rack = racks.find(r => r.id === rackId);
-    if (!rack) return;
+  setRacks(prev => [...prev, newRack]);
+  setIsAddRackModalOpen(false);
 
-    if (device.uPosition < 1 || (device.uPosition + device.uHeight - 1) > rack.units) {
-      alert(`El dispositivo excede los límites del rack (1-${rack.units}U)`);
-      return;
-    }
+};
 
-    // Check for collisions across the entire height of the new device
-    const newRange = Array.from({ length: device.uHeight }, (_, i) => device.uPosition + i);
-    const collision = rack.devices.find(d => {
-      const existingRange = Array.from({ length: d.uHeight }, (_, i) => d.uPosition + i);
-      return newRange.some(u => existingRange.includes(u));
+
+const addDevice = (rackId: string, device: Omit<Device, 'id' | 'ports'>) => {
+
+  const rack = racks.find(r => r.id === rackId);
+  if (!rack) return;
+
+  if (device.uPosition < 1 || (device.uPosition + device.uHeight - 1) > rack.units) {
+    alert(`El dispositivo excede los límites del rack (1-${rack.units}U)`);
+    return;
+  }
+
+  // Check for collisions across the entire height of the new device
+  const newRange = Array.from({ length: device.uHeight }, (_, i) => device.uPosition + i);
+
+  const collision = rack.devices.find(d => {
+    const existingRange = Array.from({ length: d.uHeight }, (_, i) => d.uPosition + i);
+    return newRange.some(u => existingRange.includes(u));
+  });
+
+  if (collision) {
+
+    setConfirmModal({
+      isOpen: true,
+      title: 'Conflicto de Posición',
+      message: `La posición seleccionada se solapa con "${collision.name}". ¿Deseas reemplazarlo?`,
+      variant: 'danger',
+
+      onConfirm: () => {
+
+        const numPorts = (device.type === 'Switch' || device.type === 'Patch Panel') ? 48 : 4;
+
+        const newDevice: Device = {
+          ...device,
+          id: crypto.randomUUID(),
+          ports: Array.from({ length: numPorts }, (_, i) => {
+
+            let portName = `${i + 1}`;
+
+            if (device.type === 'Server' || device.type === 'Firewall') {
+              const names = ['MGMT', 'WAN', 'LAN1', 'LAN2'];
+              portName = names[i] || `P${i + 1}`;
+            }
+
+            return {
+              id: i + 1,
+              name: portName,
+              connectedTo: '',
+              vlan: '1',
+              cableColor: '#3b82f6',
+              destinationPort: ''
+            };
+
+          })
+        };
+
+        setRacks(prev =>
+          prev.map(r =>
+            r.id === rackId
+              ? {
+                  ...r,
+                  devices: [
+                    ...r.devices.filter(d => d.id !== collision.id),
+                    newDevice
+                  ]
+                }
+              : r
+          )
+        );
+
+        setIsAddDeviceModalOpen(false);
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+
+      }
+
     });
 
-    if (collision) {
-      setConfirmModal({
-        isOpen: true,
-        title: 'Conflicto de Posición',
-        message: `La posición seleccionada se solapa con "${collision.name}". ¿Deseas reemplazarlo?`,
-        variant: 'danger',
-        onConfirm: () => {
-          const numPorts = (device.type === 'Switch' || device.type === 'Patch Panel') ? 48 : 4;
-          const newDevice: Device = {
-            ...device,
-            id: crypto.randomUUID(),
-            ports: Array.from({ length: numPorts }, (_, i) => {
-              let portName = `${i + 1}`;
-              if (device.type === 'Server' || device.type === 'Firewall') {
-                const names = ['MGMT', 'WAN', 'LAN1', 'LAN2'];
-                portName = names[i] || `P${i + 1}`;
-              }
-              return {
-                id: i + 1,
-                name: portName,
-                connectedTo: '',
-                vlan: '1',
-                cableColor: '#3b82f6',
-                destinationPort: ''
-              };
-            })
-          };
-          setRacks(racks.map(r => r.id === rackId ? { 
-            ...r, 
-            devices: [...r.devices.filter(d => d.id !== collision.id), newDevice] 
-          } : r));
-          setIsAddDeviceModalOpen(false);
-          setConfirmModal(prev => ({ ...prev, isOpen: false }));
-        }
-      });
-      return;
-    }
+    return;
+  }
 
-    const numPorts = (device.type === 'Switch' || device.type === 'Patch Panel') ? 48 : 4;
-    const newDevice: Device = {
-      ...device,
-      id: crypto.randomUUID(),
-      ports: Array.from({ length: numPorts }, (_, i) => {
-        let portName = `${i + 1}`;
-        if (device.type === 'Server' || device.type === 'Firewall') {
-          const names = ['MGMT', 'WAN', 'LAN1', 'LAN2'];
-          portName = names[i] || `P${i + 1}`;
-        }
-        return {
-          id: i + 1,
-          name: portName,
-          connectedTo: '',
-          vlan: '1',
-          cableColor: '#3b82f6',
-          destinationPort: ''
-        };
-      })
-    };
-    setRacks(racks.map(r => r.id === rackId ? { ...r, devices: [...r.devices, newDevice] } : r));
-    setIsAddDeviceModalOpen(false);
+  const numPorts = (device.type === 'Switch' || device.type === 'Patch Panel') ? 48 : 4;
+
+  const newDevice: Device = {
+    ...device,
+    id: crypto.randomUUID(),
+    ports: Array.from({ length: numPorts }, (_, i) => {
+
+      let portName = `${i + 1}`;
+
+      if (device.type === 'Server' || device.type === 'Firewall') {
+        const names = ['MGMT', 'WAN', 'LAN1', 'LAN2'];
+        portName = names[i] || `P${i + 1}`;
+      }
+
+      return {
+        id: i + 1,
+        name: portName,
+        connectedTo: '',
+        vlan: '1',
+        cableColor: '#3b82f6',
+        destinationPort: ''
+      };
+
+    })
   };
 
-  const updatePort = (rackId: string, deviceId: string, portId: number, config: Partial<PortConfig>) => {
-    setRacks(racks.map(r => {
+  setRacks(prev =>
+    prev.map(r =>
+      r.id === rackId
+        ? { ...r, devices: [...r.devices, newDevice] }
+        : r
+    )
+  );
+
+  setIsAddDeviceModalOpen(false);
+
+};
+
+
+const updatePort = (rackId: string, deviceId: string, portId: number, config: Partial<PortConfig>) => {
+
+  setRacks(prev =>
+    prev.map(r => {
+
       if (r.id !== rackId) return r;
+
       return {
         ...r,
         devices: r.devices.map(d => {
+
           if (d.id !== deviceId) return d;
+
           return {
             ...d,
-            ports: d.ports.map(p => p.id === portId ? { ...p, ...config } : p)
+            ports: d.ports.map(p =>
+              p.id === portId ? { ...p, ...config } : p
+            )
           };
+
         })
       };
-    }));
-    setIsPortModalOpen(false);
-  };
 
-  const deleteRack = (id: string) => {
-    const rack = racks.find(r => r.id === id);
-    setConfirmModal({
-      isOpen: true,
-      title: 'Eliminar Rack',
-      message: `¿Estás seguro de que deseas eliminar el rack "${rack?.name}"? Esta acción no se puede deshacer.`,
-      variant: 'danger',
-      onConfirm: () => {
-        setRacks(racks.filter(r => r.id !== id));
-        if (nav.type === 'RACK' && nav.rackId === id) goToGlobal();
-        if (nav.type === 'DEVICE' && nav.rackId === id) goToGlobal();
-        setConfirmModal(prev => ({ ...prev, isOpen: false }));
-      }
-    });
-  };
+    })
+  );
 
-  const deleteDevice = (rackId: string, deviceId: string) => {
-    const rack = racks.find(r => r.id === rackId);
-    const device = rack?.devices.find(d => d.id === deviceId);
-    
-    setConfirmModal({
-      isOpen: true,
-      title: 'Eliminar Dispositivo',
-      message: `¿Estás seguro de que deseas eliminar "${device?.name}"? Las conexiones existentes a este equipo se marcarán como huérfanas.`,
-      variant: 'danger',
-      onConfirm: () => {
-        const deviceName = device?.name;
-        setRacks(racks.map(r => {
-          // Clean up connections in ALL racks
+  setIsPortModalOpen(false);
+
+};
+
+
+const deleteRack = (id: string) => {
+
+  const rack = racks.find(r => r.id === id);
+
+  setConfirmModal({
+    isOpen: true,
+    title: 'Eliminar Rack',
+    message: `¿Estás seguro de que deseas eliminar el rack "${rack?.name}"? Esta acción no se puede deshacer.`,
+    variant: 'danger',
+
+    onConfirm: () => {
+
+      setRacks(prev => prev.filter(r => r.id !== id));
+
+      if (nav.type === 'RACK' && nav.rackId === id) goToGlobal();
+      if (nav.type === 'DEVICE' && nav.rackId === id) goToGlobal();
+
+      setConfirmModal(prev => ({ ...prev, isOpen: false }));
+
+    }
+
+  });
+
+};
+
+
+const deleteDevice = (rackId: string, deviceId: string) => {
+
+  const rack = racks.find(r => r.id === rackId);
+  const device = rack?.devices.find(d => d.id === deviceId);
+
+  setConfirmModal({
+    isOpen: true,
+    title: 'Eliminar Dispositivo',
+    message: `¿Estás seguro de que deseas eliminar "${device?.name}"? Las conexiones existentes a este equipo se marcarán como huérfanas.`,
+    variant: 'danger',
+
+    onConfirm: () => {
+
+      const deviceName = device?.name;
+
+      setRacks(prev =>
+        prev.map(r => {
+
           return {
             ...r,
-            devices: r.devices.filter(d => d.id !== deviceId).map(d => ({
-              ...d,
-              ports: d.ports.map(p => 
-                p.connectedTo === deviceName 
-                  ? { ...p, connectedTo: `[HUÉRFANO] (${deviceName})` } 
-                  : p
-              )
-            }))
+            devices: r.devices
+              .filter(d => d.id !== deviceId)
+              .map(d => ({
+                ...d,
+                ports: d.ports.map(p =>
+                  p.connectedTo === deviceName
+                    ? { ...p, connectedTo: `[HUÉRFANO] (${deviceName})` }
+                    : p
+                )
+              }))
           };
-        }));
-        if (nav.type === 'DEVICE' && nav.deviceId === deviceId) goToRack(rackId);
-        setConfirmModal(prev => ({ ...prev, isOpen: false }));
-      }
-    });
-  };
 
-  const reorderDevices = (rackId: string, newDevices: Device[]) => {
-    setRacks(racks.map(r => {
+        })
+      );
+
+      if (nav.type === 'DEVICE' && nav.deviceId === deviceId) goToRack(rackId);
+
+      setConfirmModal(prev => ({ ...prev, isOpen: false }));
+
+    }
+
+  });
+
+};
+
+
+const reorderDevices = (rackId: string, newDevices: Device[]) => {
+
+  setRacks(prev =>
+    prev.map(r => {
+
       if (r.id !== rackId) return r;
-      
-      // Recalculate U positions based on new order (1 is top)
+
       const updatedDevices = newDevices.map((d, index) => ({
         ...d,
         uPosition: index + 1
       }));
 
-      return { ...r, devices: updatedDevices };
-    }));
-  };
+      return {
+        ...r,
+        devices: updatedDevices
+      };
+
+    })
+  );
+
+};
+
 
   // --- Views ---
 
