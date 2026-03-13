@@ -543,7 +543,11 @@ const saveConfig = async () => {
     // 6️⃣ Obtener devices existentes
     const { data: existingDevices, error: fetchError } = await supabase
       .from("devices")
-      .select("id");
+      .select("id, rack_id")
+      .in(
+        "rack_id",
+        racks.map(r => r.id)
+      );
 
     if (fetchError) throw fetchError;
 
