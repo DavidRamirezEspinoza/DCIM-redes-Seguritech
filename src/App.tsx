@@ -513,9 +513,10 @@ const saveConfig = async () => {
     // 4️⃣ Guardar racks actuales
     const rackPayload = racks.map(rack => ({
       id: rack.id,
-      name: rack.name,
-      units: rack.units || 42
-    }));
+        name: rack.name,
+        units: rack.units || 42,
+        site_id: selectedSite
+      }));
 
     const { error: rackError } = await supabase
       .from("racks")
