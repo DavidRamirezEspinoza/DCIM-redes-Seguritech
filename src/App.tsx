@@ -484,7 +484,8 @@ const saveConfig = async () => {
     // 1️⃣ Obtener racks actuales en Supabase
     const { data: existingRacks, error: fetchRackError } = await supabase
       .from("racks")
-      .select("id");
+      .select("id")
+      .eq("site_id", selectedSite);
 
     if (fetchRackError) throw fetchRackError;
 
