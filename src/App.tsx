@@ -378,6 +378,8 @@ useEffect(() => {
     setEditingDevice(null);
   };
 
+  const [sites, setSites] = useState<any[]>([]);
+  const [selectedSite, setSelectedSite] = useState<string | null>(null);
   const [isPortModalOpen, setIsPortModalOpen] = useState(false);
   const [selectedPort, setSelectedPort] = useState<{ deviceId: string; portId: number } | null>(null);
   const [confirmModal, setConfirmModal] = useState<{ 
@@ -397,12 +399,16 @@ useEffect(() => {
   // --- PERSISTENCIA CON SUPABASE ---
 
   // 1. Cargar datos al iniciar
- useEffect(() => {
+useEffect(() => {
+
+  if (!selectedSite) return;
+
   const loadData = async () => {
 
     const { data: racksData, error: racksError } = await supabase
       .from("racks")
-      .select("*");
+      .select("*")
+      .eq("site_id", selectedSite);
 
     const { data: devicesData, error: devicesError } = await supabase
       .from("devices")
@@ -427,10 +433,8 @@ useEffect(() => {
           id: device.id,
           name: device.name,
           type: device.type,
-
           uPosition: Number(device.position) || 1,
           uHeight: Number(device.height) || 1,
-
           ports: device.ports || []
         }))
     }));
@@ -440,8 +444,35 @@ useEffect(() => {
   };
 
   loadData();
-}, []);
 
+}, [selectedSite]);
+
+
+
+  useEffect(() => {
+    const loadSites = async () => {
+
+      const { data, error } = await supabase
+        .from("sites")
+        .select("*");
+
+      if (error) {
+        console.error("Error cargando sedes:", error);
+        return;
+      }
+
+      console.log("SITES:", data);
+
+      setSites(data);
+
+      if (data.length > 0) {
+        setSelectedSite(data[0].id);
+      }
+
+    };
+
+    loadSites();
+  }, []);
 
   // 2. Guardar configuración en la nube
 const saveConfig = async () => {
@@ -1522,15 +1553,28 @@ const reorderDevices = (rackId: string, newDevices: Device[]) => {
         <div className="flex items-center gap-3">
           {/* Contenedor de la imagen ajustado */}
           <div className="flex items-center justify-center h-10 overflow-hidden">
-            <img 
-              src={logoSeguritech} 
-              alt="Logo" 
-              className="h-full w-auto object-contain" 
+            <img
+              src={logoSeguritech}
+              alt="Logo"
+              className="h-full w-auto object-contain"
             />
           </div>
+
           <h1 className="text-xl font-black tracking-tighter text-white">
             NETWORK <span className="text-emerald-500">MANGER</span>
           </h1>
+
+          <select
+            value={selectedSite || ""}
+            onChange={(e) => setSelectedSite(e.target.value)}
+            className="ml-4 bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs rounded px-3 py-1"
+          >
+            {sites.map(site => (
+              <option key={site.id} value={site.id}>
+                {site.name}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="flex items-center gap-6 text-xs font-medium text-zinc-500">
           <span className="flex items-center gap-1.5">
