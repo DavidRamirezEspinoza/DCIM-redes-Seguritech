@@ -397,34 +397,51 @@ useEffect(() => {
   // --- PERSISTENCIA CON SUPABASE ---
 
   // 1. Cargar datos al iniciar
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('devices')
-          .select('*');
-        
-        if (error) throw error;
+ useEffect(() => {
+  const loadData = async () => {
 
-        if (data && data.length > 0) {
-          // Transformamos los datos de la nube al formato de tus racks
-          const loadedRacks = data.map(item => ({
-            id: item.id,
-            name: item.name,
-            devices: item.ports || []
-          }));
-          setRacks(loadedRacks);
-        } else {
-          // Si la nube está vacía, intentamos cargar de localStorage como respaldo
-          const saved = localStorage.getItem('seguritech_dcim_backup');
-          if (saved) setRacks(JSON.parse(saved));
-        }
-      } catch (e) {
-        console.error("Error cargando desde Supabase:", e);
-      }
-    };
-    loadData();
-  }, []);
+    const { data: racksData, error: racksError } = await supabase
+      .from("racks")
+      .select("*");
+
+    const { data: devicesData, error: devicesError } = await supabase
+      .from("devices")
+      .select("*");
+
+    if (racksError || devicesError) {
+      console.error(racksError || devicesError);
+      return;
+    }
+
+    console.log("RACKS:", racksData);
+    console.log("DEVICES:", devicesData);
+
+    const loadedRacks = racksData.map(rack => ({
+      id: rack.id,
+      name: rack.name,
+      units: rack.units || 42,
+
+      devices: devicesData
+        .filter(device => device.rack_id === rack.id)
+        .map(device => ({
+          id: device.id,
+          name: device.name,
+          type: device.type,
+
+          uPosition: Number(device.position) || 1,
+          uHeight: Number(device.height) || 1,
+
+          ports: device.ports || []
+        }))
+    }));
+
+    setRacks(loadedRacks);
+
+  };
+
+  loadData();
+}, []);
+
 
   // 2. Guardar configuración en la nube
 const saveConfig = async () => {
@@ -433,36 +450,39 @@ const saveConfig = async () => {
 
   try {
 
-    const payload = racks.flatMap(rack =>
+    // 1️⃣ Guardar racks
+    const rackPayload = racks.map(rack => ({
+      id: rack.id,
+      name: rack.name,
+      units: rack.units || 42
+    }));
+
+    const { error: rackError } = await supabase
+      .from("racks")
+      .upsert(rackPayload);
+
+    if (rackError) throw rackError;
+
+    // 2️⃣ Preparar dispositivos
+    const devicePayload = racks.flatMap(rack =>
       rack.devices.map(device => ({
         id: device.id,
         name: device.name,
         type: device.type,
-        rack: rack.name,
+        rack_id: rack.id,
         position: device.uPosition,
         height: device.uHeight,
-        ports: device.ports
+        ports: device.ports || []
       }))
     );
 
-    const { error: deleteError } = await supabase
+    const { error: deviceError } = await supabase
       .from("devices")
-      .delete()
-      .gt("id", "00000000-0000-0000-0000-000000000000");
+      .upsert(devicePayload);
 
-    if (deleteError) throw deleteError;
+    if (deviceError) throw deviceError;
 
-    if (payload.length > 0) {
-
-      const { error: insertError } = await supabase
-        .from("devices")
-        .insert(payload);
-
-      if (insertError) throw insertError;
-
-    }
-
-    alert("Configuración guardada correctamente");
+    alert("Guardado correctamente");
 
   } catch (err) {
 
@@ -470,8 +490,8 @@ const saveConfig = async () => {
     alert("Error al guardar");
 
   }
-
 };
+
 
   // 3. Funciones de archivos (Exportar/Importar) - Se mantienen igual por utilidad
   const exportConfig = () => {
