@@ -463,7 +463,8 @@ const saveConfig = async () => {
 
     if (rackError) throw rackError;
 
-    // 2️⃣ Preparar dispositivos
+
+    // 2️⃣ Preparar dispositivos actuales del frontend
     const devicePayload = racks.flatMap(rack =>
       rack.devices.map(device => ({
         id: device.id,
@@ -476,11 +477,46 @@ const saveConfig = async () => {
       }))
     );
 
-    const { error: deviceError } = await supabase
-      .from("devices")
-      .upsert(devicePayload);
 
-    if (deviceError) throw deviceError;
+    // 3️⃣ Obtener devices actuales en Supabase
+    const { data: existingDevices, error: fetchError } = await supabase
+      .from("devices")
+      .select("id");
+
+    if (fetchError) throw fetchError;
+
+
+    // 4️⃣ Detectar devices que fueron eliminados en el frontend
+    const frontendIds = devicePayload.map(d => d.id);
+
+    const devicesToDelete = existingDevices
+      .filter(d => !frontendIds.includes(d.id))
+      .map(d => d.id);
+
+
+    // 5️⃣ Eliminar devices borrados
+    if (devicesToDelete.length > 0) {
+
+      const { error: deleteError } = await supabase
+        .from("devices")
+        .delete()
+        .in("id", devicesToDelete);
+
+      if (deleteError) throw deleteError;
+
+    }
+
+
+    // 6️⃣ Guardar dispositivos actuales
+    if (devicePayload.length > 0) {
+
+      const { error: deviceError } = await supabase
+        .from("devices")
+        .upsert(devicePayload);
+
+      if (deviceError) throw deviceError;
+
+    }
 
     alert("Guardado correctamente");
 
@@ -490,7 +526,9 @@ const saveConfig = async () => {
     alert("Error al guardar");
 
   }
+
 };
+
 
 
   // 3. Funciones de archivos (Exportar/Importar) - Se mantienen igual por utilidad
@@ -523,8 +561,6 @@ const saveConfig = async () => {
   const goToDevice = (rackId: string, deviceId: string) => setNav({ type: 'DEVICE', rackId, deviceId });
 
   // Data Handlers
- // Data Handlers
-
 const addRack = (name: string, units: number) => {
 
   const newRack: Rack = {
