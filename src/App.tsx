@@ -450,7 +450,36 @@ const saveConfig = async () => {
 
   try {
 
-    // 1️⃣ Guardar racks
+    // 1️⃣ Obtener racks actuales en Supabase
+    const { data: existingRacks, error: fetchRackError } = await supabase
+      .from("racks")
+      .select("id");
+
+    if (fetchRackError) throw fetchRackError;
+
+
+    // 2️⃣ Detectar racks eliminados en frontend
+    const frontendRackIds = racks.map(r => r.id);
+
+    const racksToDelete = existingRacks
+      .filter(r => !frontendRackIds.includes(r.id))
+      .map(r => r.id);
+
+
+    // 3️⃣ Eliminar racks borrados
+    if (racksToDelete.length > 0) {
+
+      const { error: deleteRackError } = await supabase
+        .from("racks")
+        .delete()
+        .in("id", racksToDelete);
+
+      if (deleteRackError) throw deleteRackError;
+
+    }
+
+
+    // 4️⃣ Guardar racks actuales
     const rackPayload = racks.map(rack => ({
       id: rack.id,
       name: rack.name,
@@ -464,7 +493,7 @@ const saveConfig = async () => {
     if (rackError) throw rackError;
 
 
-    // 2️⃣ Preparar dispositivos actuales del frontend
+    // 5️⃣ Preparar dispositivos
     const devicePayload = racks.flatMap(rack =>
       rack.devices.map(device => ({
         id: device.id,
@@ -478,7 +507,7 @@ const saveConfig = async () => {
     );
 
 
-    // 3️⃣ Obtener devices actuales en Supabase
+    // 6️⃣ Obtener devices existentes
     const { data: existingDevices, error: fetchError } = await supabase
       .from("devices")
       .select("id");
@@ -486,7 +515,7 @@ const saveConfig = async () => {
     if (fetchError) throw fetchError;
 
 
-    // 4️⃣ Detectar devices que fueron eliminados en el frontend
+    // 7️⃣ Detectar devices eliminados
     const frontendIds = devicePayload.map(d => d.id);
 
     const devicesToDelete = existingDevices
@@ -494,7 +523,7 @@ const saveConfig = async () => {
       .map(d => d.id);
 
 
-    // 5️⃣ Eliminar devices borrados
+    // 8️⃣ Eliminar devices borrados
     if (devicesToDelete.length > 0) {
 
       const { error: deleteError } = await supabase
@@ -507,7 +536,7 @@ const saveConfig = async () => {
     }
 
 
-    // 6️⃣ Guardar dispositivos actuales
+    // 9️⃣ Guardar devices actuales
     if (devicePayload.length > 0) {
 
       const { error: deviceError } = await supabase
@@ -528,6 +557,7 @@ const saveConfig = async () => {
   }
 
 };
+
 
 
 
