@@ -439,15 +439,13 @@ const saveConfig = async () => {
       }))
     );
 
-    // 1️⃣ borrar todo lo anterior
     const { error: deleteError } = await supabase
       .from("devices")
       .delete()
-      .neq("id", "");
+      .gt("id", "00000000-0000-0000-0000-000000000000");
 
     if (deleteError) throw deleteError;
 
-    // 2️⃣ insertar configuración actual
     if (payload.length > 0) {
 
       const { error: insertError } = await supabase
@@ -468,6 +466,7 @@ const saveConfig = async () => {
   }
 
 };
+
   // 3. Funciones de archivos (Exportar/Importar) - Se mantienen igual por utilidad
   const exportConfig = () => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(racks, null, 2));
