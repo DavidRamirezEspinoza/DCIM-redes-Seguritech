@@ -422,6 +422,7 @@ useEffect(() => {
 
   // 2. Guardar configuración en la nube
 const saveConfig = async () => {
+
   console.log("Guardando configuración...");
 
   try {
@@ -432,24 +433,55 @@ const saveConfig = async () => {
         name: device.name,
         type: device.type,
         rack: rack.name,
-        position: device.position,
-        ports: device.ports || 48
+        position: device.uPosition,
+        height: device.uHeight,
+        ports: device.ports
       }))
     );
 
-    const { error } = await supabase
+    // 1️⃣ leer lo que existe en la base
+    const { data: existingDevices, error: fetchError } = await supabase
+      .from("devices")
+      .select("id");
+
+    if (fetchError) throw fetchError;
+
+    const existingIds = existingDevices.map(d => d.id);
+    const newIds = payload.map(d => d.id);
+
+    // 2️⃣ detectar eliminados
+    const idsToDelete = existingIds.filter(id => !newIds.includes(id));
+
+    // 3️⃣ borrar eliminados
+    if (idsToDelete.length > 0) {
+
+      const { error: deleteError } = await supabase
+        .from("devices")
+        .delete()
+        .in("id", idsToDelete);
+
+      if (deleteError) throw deleteError;
+
+    }
+
+    // 4️⃣ guardar actuales
+    const { error: upsertError } = await supabase
       .from("devices")
       .upsert(payload);
 
-    if (error) throw error;
+    if (upsertError) throw upsertError;
 
     alert("Guardado correctamente");
 
   } catch (err) {
+
     console.error(err);
     alert("Error al guardar");
+
   }
+
 };
+
 
 
 
