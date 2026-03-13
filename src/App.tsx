@@ -324,24 +324,29 @@ useEffect(() => {
       .from("devices")
       .select("*");
 
-      console.log("DATOS DESDE SUPABASE:", data);
+    console.log("DATOS DESDE SUPABASE:", data);
 
     if (error) {
       console.error(error);
       return;
     }
 
+    // 👇 si no hay dispositivos, no crear racks
+    if (!data || data.length === 0) {
+      setRacks([]);
+      return;
+    }
+
     const loadedRacks = [
       {
         id: "rack1",
-        name: "Rack 1",
+        name: data[0].rack || "Rack 1",
         units: 42,
         devices: data.map((device, index) => ({
           id: device.id,
           name: device.name,
           type: device.type,
 
-          // 👇 protección si Supabase no trae position o height
           uPosition: Number(device.position) || (index + 1),
           uHeight: Number(device.height) || 1,
 
@@ -356,6 +361,7 @@ useEffect(() => {
 
   loadData();
 }, []);
+
 
 
   // --- TUS FUNCIONES ORIGINALES ---
